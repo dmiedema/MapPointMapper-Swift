@@ -1,0 +1,5 @@
+xcode_project: MapPointMapper.xcodeproj
+xcode_scheme: MapPointMapper
+
+osx_image: xcode7
+
