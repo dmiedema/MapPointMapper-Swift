@@ -36,16 +36,16 @@ class ViewController: NSViewController, MKMapViewDelegate, NSTextFieldDelegate {
   }
 
   // MARK: Actions
-  @IBAction func loadFileButtonPressed(sender: NSButton!) {
+  @IBAction func loadFileButtonPressed(_ sender: NSButton!) {
     let openPanel = NSOpenPanel()
     openPanel.canChooseDirectories = false
     
-    openPanel.beginSheetModalForWindow(NSApplication.sharedApplication().keyWindow!, completionHandler: { (result) -> Void in
-      self.readFileAtURL(openPanel.URL)
+    openPanel.beginSheetModal(for: NSApplication.shared().keyWindow!, completionHandler: { (result) -> Void in
+      self.readFileAtURL(openPanel.url)
     })
   }
 
-  @IBAction func addLineFromTextPressed(sender: NSObject) {
+  @IBAction func addLineFromTextPressed(_ sender: NSObject) {
     if textfield.stringValue.isEmpty { return }
     if renderInput(textfield.stringValue as NSString) {
       textfield.stringValue = ""
@@ -55,17 +55,17 @@ class ViewController: NSViewController, MKMapViewDelegate, NSTextFieldDelegate {
     }
   }
   
-  @IBAction func removeLastLinePressed(sender: NSButton) {
+  @IBAction func removeLastLinePressed(_ sender: NSButton) {
     if let overlay: AnyObject = mapview.overlays.last {
-      mapview.removeOverlay(overlay as! MKOverlay)
+      mapview.remove(overlay as! MKOverlay)
     }
   }
   
-  @IBAction func removeAllLinesPressed(sender: NSButton) {
+  @IBAction func removeAllLinesPressed(_ sender: NSButton) {
     mapview.removeOverlays(mapview.overlays)
   }
   
-  @IBAction func switchLatLngPressed(sender: NSButton) {
+  @IBAction func switchLatLngPressed(_ sender: NSButton) {
     parseLongitudeFirst = !parseLongitudeFirst
     if self.parseLongitudeFirst {
       self.latlngLabel.stringValue = "Lng/Lat"
@@ -74,7 +74,7 @@ class ViewController: NSViewController, MKMapViewDelegate, NSTextFieldDelegate {
     }
   }
   
-  @IBAction func centerUSPressed(sender: NSButton) {
+  @IBAction func centerUSPressed(_ sender: NSButton) {
     let centerUS = CLLocationCoordinate2D(
       latitude: 37.09024,
       longitude: -95.712891
@@ -95,14 +95,14 @@ class ViewController: NSViewController, MKMapViewDelegate, NSTextFieldDelegate {
     mapview.setRegion(usRegion, animated: true)
   }
 
-  @IBAction func centerAllLinesPressed(sender: NSButton) {
+  @IBAction func centerAllLinesPressed(_ sender: NSButton) {
     let polylines = mapview.overlays as [MKOverlay]
     let boundingMapRect = boundingMapRectForPolylines(polylines)
-    mapview.setVisibleMapRect(boundingMapRect, edgePadding: NSEdgeInsets(top: 10, left: 10, bottom: 10, right: 10), animated: true)
+    mapview.setVisibleMapRect(boundingMapRect, edgePadding: EdgeInsets(top: 10, left: 10, bottom: 10, right: 10), animated: true)
   }
   
   // MARK: MKMapDelegate
-  func mapView(mapView: MKMapView, rendererForOverlay overlay: MKOverlay) -> MKOverlayRenderer {
+  func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
     let renderer = MKPolylineRenderer(overlay: overlay)
     renderer.alpha = 1.0
     renderer.lineWidth = 4.0
@@ -110,14 +110,14 @@ class ViewController: NSViewController, MKMapViewDelegate, NSTextFieldDelegate {
     return renderer
   }
 
-  @IBAction func searchForLocation(sender: NSObject) {
+  @IBAction func searchForLocation(_ sender: NSObject) {
     if searchfield.stringValue.isEmpty { return }
     renderLocationSearch(searchfield.stringValue)
     searchfield.stringValue = ""
   }
 
 
-  private func renderLocationSearch(input: String) {
+  fileprivate func renderLocationSearch(_ input: String) {
     let geocoder = CLGeocoder()
     geocoder.geocodeAddressString(input) { (placemarks, errors) in
       guard let placemark = placemarks?.first,
@@ -141,8 +141,8 @@ class ViewController: NSViewController, MKMapViewDelegate, NSTextFieldDelegate {
 
   - returns: an MKOverlay created from array of `CLLocationCoordinate2D` instances
   */
-  private func createPolylineForCoordinates(mapPoints: [CLLocationCoordinate2D]) -> MKOverlay {
-    let coordinates = UnsafeMutablePointer<CLLocationCoordinate2D>.alloc(mapPoints.count)
+  fileprivate func createPolylineForCoordinates(_ mapPoints: [CLLocationCoordinate2D]) -> MKOverlay {
+    let coordinates = UnsafeMutablePointer<CLLocationCoordinate2D>.allocate(capacity: mapPoints.count)
     
     var count: Int = 0
     for coordinate in mapPoints {
@@ -166,7 +166,7 @@ class ViewController: NSViewController, MKMapViewDelegate, NSTextFieldDelegate {
 
   - returns: an `MKMapRect` that contains all the given `MKOverlay` objects
   */
-  private func boundingMapRectForPolylines(polylines: [MKOverlay]) -> MKMapRect {
+  fileprivate func boundingMapRectForPolylines(_ polylines: [MKOverlay]) -> MKMapRect {
     var minX = Double.infinity
     var minY = Double.infinity
     var maxX = Double(0)
@@ -194,22 +194,22 @@ class ViewController: NSViewController, MKMapViewDelegate, NSTextFieldDelegate {
 
   - parameter passedURL: `NSURL` to attempt to read
   */
-  private func readFileAtURL(passedURL: NSURL?) {
+  fileprivate func readFileAtURL(_ passedURL: URL?) {
     guard let url = passedURL else { return }
 
     do {
-      let contents = try NSString(contentsOfURL: url, encoding: NSUTF8StringEncoding) as String
-      renderInput(contents)
+      let contents = try NSString(contentsOf: url, encoding: String.Encoding.utf8.rawValue) as String
+      renderInput(contents as NSString)
     } catch {
       NSAlert(error: error as NSError).runModal()
     }
   } // end readFileAtURL
 
-  private func randomizeColorWell() {
+  fileprivate func randomizeColorWell() {
     colorWell.color = NSColor.randomColor()
   }
 
-  private func renderInput(input: NSString) -> Bool {
+  fileprivate func renderInput(_ input: NSString) -> Bool {
     if parseInput(input) {
       randomizeColorWell()
       return true
@@ -227,12 +227,12 @@ class ViewController: NSViewController, MKMapViewDelegate, NSTextFieldDelegate {
 
   - returns: `Bool` on render success
   */
-  private func parseInput(input: NSString) -> Bool {
+  fileprivate func parseInput(_ input: NSString) -> Bool {
     var coordinates = [[CLLocationCoordinate2D]()]
 
     do {
       coordinates = try Parser.parseString(input, longitudeFirst: parseLongitudeFirst).filter({!$0.isEmpty})
-    } catch ParseError.InvalidWktString {
+    } catch ParseError.invalidWktString {
       let error_msg = NSError(domain:String(), code:-1, userInfo:
         [NSLocalizedDescriptionKey: "Invalid WKT input string, unable to parse"])
       NSAlert(error: error_msg).runModal()
@@ -245,13 +245,13 @@ class ViewController: NSViewController, MKMapViewDelegate, NSTextFieldDelegate {
     var polylines = [MKOverlay]()
     for coordinateSet in coordinates {
       let polyline = createPolylineForCoordinates(coordinateSet)
-      mapview.addOverlay(polyline, level: .AboveRoads)
+      mapview.add(polyline, level: .aboveRoads)
       polylines.append(polyline)
     }
 
     if !polylines.isEmpty {
       let boundingMapRect = boundingMapRectForPolylines(polylines)
-      mapview.setVisibleMapRect(boundingMapRect, edgePadding: NSEdgeInsets(top: 10, left: 10, bottom: 10, right: 10), animated: true)
+      mapview.setVisibleMapRect(boundingMapRect, edgePadding: EdgeInsets(top: 10, left: 10, bottom: 10, right: 10), animated: true)
     }
     return true
   }

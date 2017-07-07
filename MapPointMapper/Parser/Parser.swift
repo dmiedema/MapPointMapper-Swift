@@ -16,7 +16,7 @@ extension NSString {
   - returns: `true` if the string is empty, `false` if not
   */
   var isEmpty: Bool {
-    get { return self.length == 0 || self.isEqualToString("") }
+    get { return self.length == 0 || self.isEqual(to: "") }
   }
 }
 extension String {
@@ -32,8 +32,8 @@ extension String {
   }
 }
 
-enum ParseError : ErrorType {
-  case InvalidWktString(description: String)
+enum ParseError : Error {
+  case invalidWktString(description: String)
 }
 
 class Parser {
@@ -48,11 +48,11 @@ class Parser {
 
   - returns: An array of `CLLocationCoordinate2D` arrays representing the parsed areas/lines
   */
-  class func parseString(input: NSString, longitudeFirst: Bool) throws -> [[CLLocationCoordinate2D]] {
+  class func parseString(_ input: NSString, longitudeFirst: Bool) throws -> [[CLLocationCoordinate2D]] {
     let coordinate_set = Parser(longitudeFirst: longitudeFirst).parseInput(input)
 
     guard coordinate_set.count > 0 else {
-      throw ParseError.InvalidWktString(description: "Unable to parse input string")
+      throw ParseError.invalidWktString(description: "Unable to parse input string")
     }
 
     return coordinate_set
@@ -78,7 +78,7 @@ class Parser {
 
   - returns: Collection of `CLLocationCoordinate2D` arrays
   */
-  internal func parseInput(input: NSString) ->  [[CLLocationCoordinate2D]] {
+  internal func parseInput(_ input: NSString) ->  [[CLLocationCoordinate2D]] {
     var array = [[NSString]]()
     
     let line = input as String
@@ -88,9 +88,9 @@ class Parser {
       var items = [NSString]()
       
       if isMultiItem(line) {
-        items = stripExtraneousCharacters(line).componentsSeparatedByString("),")
+        items = stripExtraneousCharacters(line as NSString).components(separatedBy: "),")
       } else {
-        items = [stripExtraneousCharacters(line)]
+        items = [stripExtraneousCharacters(line as NSString)]
       }
       
       array = items.map({ self.formatStandardGeoDataString($0) })
@@ -110,11 +110,11 @@ class Parser {
 
   - returns: array of collections of tuple pairs where the tuples are lat/lng values as `NSString`s
   */
-  internal func convertStringArraysToTuples(array: [[NSString]]) -> [[(NSString, NSString)]] {
+  internal func convertStringArraysToTuples(_ array: [[NSString]]) -> [[(NSString, NSString)]] {
     var tmpResults = [(NSString, NSString)]()
     var results = [[(NSString, NSString)]]()
     for arr in array {
-      for i in 0.stride(to: arr.count - 1, by: 2) {
+      for i in stride(from: 0, to: arr.count - 1, by: 2) {
         let elem = (arr[i], arr[i + 1])
         tmpResults.append(elem)
       }
@@ -124,7 +124,7 @@ class Parser {
       }
       
       results.append(tmpResults)
-      tmpResults.removeAll(keepCapacity: false)
+      tmpResults.removeAll(keepingCapacity: false)
     } // end for arr in array
     return results
   }
@@ -138,31 +138,31 @@ class Parser {
 
   - returns: array of strings where each string is one value from the string with all empty strings filtered out.
   */
-  internal func formatStandardGeoDataString(input: NSString) -> [NSString] {
+  internal func formatStandardGeoDataString(_ input: NSString) -> [NSString] {
     // Remove Extra ()
     let stripped = input
-      .stringByReplacingOccurrencesOfString("(", withString: "")
-      .stringByReplacingOccurrencesOfString(")", withString: "")
+      .replacingOccurrences(of: "(", with: "")
+      .replacingOccurrences(of: ")", with: "")
     
     // Break on ',' to get pairs separated by ' '
-    let pairs = stripped.componentsSeparatedByString(",")
+    let pairs = stripped.components(separatedBy: ",")
     
     // break on " " and remove empties
     var filtered = [NSString]()
     
     for pair in pairs {
-      pair.componentsSeparatedByString(" ").filter({!$0.isEmpty}).forEach({filtered.append($0)})
+      pair.components(separatedBy: " ").filter({!$0.isEmpty}).forEach({filtered.append($0 as NSString)})
     }
     
     return filtered.filter({!$0.isEmpty})
   }
   
-  private func formatCustomLatLongString(input: NSString) -> [NSString] {
-    return input.stringByReplacingOccurrencesOfString("\n", withString: ",").componentsSeparatedByString(",") as [NSString]
+  fileprivate func formatCustomLatLongString(_ input: NSString) -> [NSString] {
+    return input.replacingOccurrences(of: "\n", with: ",").components(separatedBy: ",") as [NSString]
   }
   
-  private func splitLine(input: NSString, delimiter: NSString) -> (NSString, NSString) {
-    let array = input.componentsSeparatedByString(delimiter as String)
+  fileprivate func splitLine(_ input: NSString, delimiter: NSString) -> (NSString, NSString) {
+    let array = input.components(separatedBy: delimiter as String)
     return (array.first! as NSString, array.last! as NSString)
   }
   
@@ -176,7 +176,7 @@ class Parser {
 
   - returns: array of `CLLocationCoordinate2D` values
   */
-  internal func convertToCoordinates(pairs: [(NSString, NSString)], longitudeFirst: Bool) -> [CLLocationCoordinate2D] {
+  internal func convertToCoordinates(_ pairs: [(NSString, NSString)], longitudeFirst: Bool) -> [CLLocationCoordinate2D] {
     var coordinates = [CLLocationCoordinate2D]()
     for pair in pairs {
       var lat: Double = 0.0
@@ -209,22 +209,22 @@ class Parser {
 
   - returns: stripped string instance
   */
-  internal func stripExtraneousCharacters(input: NSString) -> NSString {
+  internal func stripExtraneousCharacters(_ input: NSString) -> NSString {
     let regex: NSRegularExpression?
     do {
-      regex = try NSRegularExpression(pattern: "\\w+\\s*\\((.*)\\)", options: .CaseInsensitive)
+      regex = try NSRegularExpression(pattern: "\\w+\\s*\\((.*)\\)", options: .caseInsensitive)
     } catch _ {
       regex = nil
     }
-    let match: AnyObject? = regex?.matchesInString(input as String, options: .ReportCompletion, range: NSMakeRange(0, input.length)).first
-    let range = match?.rangeAtIndex(1)
+    let match: AnyObject? = regex?.matches(in: input as String, options: .reportCompletion, range: NSMakeRange(0, input.length)).first
+    let range = match?.rangeAt(1)
 
     let loc = range?.location as Int!
     let len = range?.length as Int!
     
     guard loc != nil && len != nil else { return "" }
 
-    return input.substringWithRange(NSRange(location: loc, length: len)) as NSString
+    return input.substring(with: NSRange(location: loc!, length: len!)) as NSString
   }
 
   /**
@@ -236,9 +236,9 @@ class Parser {
 
   - returns: `true` if it thinks it is, `false` otherwise
   */
-  internal func isProbablyGeoString(input: String) -> Bool {
+  internal func isProbablyGeoString(_ input: String) -> Bool {
     let stripped = input.stringByStrippingLeadingAndTrailingWhiteSpace()
-    if stripped.rangeOfString("^\\w+", options: .RegularExpressionSearch) != nil {
+    if stripped.range(of: "^\\w+", options: .regularExpression) != nil {
       return true
     }
     return false
@@ -251,8 +251,8 @@ class Parser {
 
   - returns: `true` if the string starts with `MULTI`. `false` otherwise
   */
-  internal func isMultiItem(input: String) -> Bool {
-    if input.rangeOfString("MULTI", options: .RegularExpressionSearch) != nil {
+  internal func isMultiItem(_ input: String) -> Bool {
+    if input.range(of: "MULTI", options: .regularExpression) != nil {
       return true
     }
     return false
@@ -267,8 +267,8 @@ class Parser {
   
   - returns: `true` if elements are space delimited, `false` otherwise
   */
-  private func isSpaceDelimited(input: String) -> Bool {
-    let array = input.componentsSeparatedByString(" ")
+  fileprivate func isSpaceDelimited(_ input: String) -> Bool {
+    let array = input.components(separatedBy: " ")
     return array.count > 1
   }
 }
